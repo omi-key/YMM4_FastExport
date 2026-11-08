@@ -1,0 +1,138 @@
+name: Build
+
+on:
+  push:
+    branches: [main, 'ci-*']
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      ymm4_tag:
+        description: 'Build against this YMM4 release tag (default: latest)'
+        required: false
+  schedule:
+    # Weekly: detects a YMM4 update that breaks the build
+    - cron: '0 3 * * 1'
+
+jobs:
+  native:
+    name: NvencNative.dll
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install mingw-w64
+        run: sudo apt-get update && sudo apt-get install -y g++-mingw-w64-x86-64-posix
+      # The oldest headers that build: the DLL then runs with drivers from 522.25 (n13.0 headers would need 570.0)
+      - name: Get nv-codec-headers (MIT)
+        run: git clone --depth 1 --branch n12.0.16.2 https://github.com/FFmpeg/nv-codec-headers "$RUNNER_TEMP/nvh"
+      - name: Build
+        run: NVEnc/NvencNative/build-mingw.sh "$RUNNER_TEMP/nvh/include/ffnvcodec" "$RUNNER_TEMP/out"
+      # Internal hand-off to the Windows job (the DLL is also inside YMM4_FastExport.ymme); expires after a day
+      - uses: actions/upload-artifact@v4
+        with:
+          name: internal-NvencNative
+          path: ${{ runner.temp }}/out/NvencNative.dll
+          retention-days: 1
+          if-no-files-found: error
+
+  plugins:
+    name: Plugins
+    needs: native
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: internal-NvencNative
+          path: native
+
+      - name: Download YMM4 Lite
+        shell: pwsh
+        run: |
+          $tag = '${{ inputs.ymm4_tag }}'
+          if (-not $tag) { $tag = (gh release view --repo manju-summoner/YukkuriMovieMaker4 --json tagName | ConvertFrom-Json).tagName }
+          gh release download $tag --repo manju-summoner/YukkuriMovieMaker4 --pattern '*_Lite.zip' --dir ymm4dl --clobber
+          Expand-Archive (Get-ChildItem ymm4dl/*.zip | Select-Object -First 1).FullName -DestinationPath ymm4
+          $exe = Get-ChildItem ymm4 -Recurse -Filter YukkuriMovieMaker.exe | Select-Object -First 1
+          "YMM4_DIR=$($exe.Directory.FullName)\" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          "YMM4_TAG=$tag" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "YMM4 $tag at $($exe.Directory.FullName)"
+
+      - name: Build plugins
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $nat = (Resolve-Path native\NvencNative.dll).Path
+          dotnet build ParallelRender/ParallelRenderPlugin/ParallelRenderPlugin.csproj -c Release "-p:YMM4DirPath=$env:YMM4_DIR" "-p:DeployDir=$PWD\dist\ParallelRenderPlugin" "-p:NvencNativeDll=$nat" -nologo -v:m
+          dotnet build VideoDecode/VideoDecodePlugin/VideoDecodePlugin.csproj -c Release "-p:YMM4DirPath=$env:YMM4_DIR" "-p:DeployDir=$PWD\dist\VideoDecodePlugin" -nologo -v:m
+          dotnet build FastPsdTachie/FastPsdTachiePlugin/FastPsdTachiePlugin.csproj -c Release "-p:YMM4DirPath=$env:YMM4_DIR" -nologo -v:m
+          dotnet build FastPsdTachie/tests/MappingCheck/MappingCheck.csproj -c Release "-p:YMM4DirPath=$env:YMM4_DIR" -nologo -v:m
+          # FastPsdTachie has no DeployDir: collect its output
+          $out = Get-ChildItem FastPsdTachie/FastPsdTachiePlugin/bin/Release -Directory | Select-Object -First 1
+          New-Item -ItemType Directory dist\FastPsdTachiePlugin -Force | Out-Null
+          Copy-Item "$($out.FullName)\FastPsdTachiePlugin.dll", "$($out.FullName)\LICENSE", "$($out.FullName)\README.md" dist\FastPsdTachiePlugin
+          Copy-Item FastPsdTachie\tools dist\FastPsdTachiePlugin\tools -Recurse
+
+      - name: MappingCheck (FastPsdTachie vs the standard implementation)
+        shell: pwsh
+        run: |
+          $bin = (Get-ChildItem FastPsdTachie/tests/MappingCheck/bin/Release -Directory | Select-Object -First 1).FullName
+          Remove-Item "$bin\MappingCheck.deps.json" -ErrorAction SilentlyContinue
+          # YMM4 is self-contained: copy only its own libraries, not the .NET runtime (hostfxr, System.*, ...)
+          $skip = '^(System|Microsoft|WindowsBase|PresentationCore|PresentationFramework|UIAutomation|mscor|clr|coreclr|hostfxr|hostpolicy|api-ms|ucrtbase|D3DCompiler|createdump|netstandard|Accessibility|ReachFramework|DirectWriteForwarder|vcruntime|msvcp|concrt)'
+          Get-ChildItem $env:YMM4_DIR -Filter *.dll | Where-Object { $_.Name -notmatch $skip } | ForEach-Object { if (-not (Test-Path "$bin\$($_.Name)")) { Copy-Item $_.FullName $bin } }
+          dotnet "$bin\MappingCheck.dll"
+          if ($LASTEXITCODE -ne 0) { throw "MappingCheck failed ($LASTEXITCODE)" }
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # What the installer lists: one folder with a Readme.txt, a LICENSE.txt and the three plugin folders (DLLs only)
+          $pkg = 'dist\YMM4_FastExport'
+          New-Item -ItemType Directory $pkg -Force | Out-Null
+          foreach ($d in Get-ChildItem dist -Directory | Where-Object Name -ne 'YMM4_FastExport') {
+            Get-ChildItem $d.FullName -File | Where-Object { $_.Name -in 'LICENSE','THIRD_PARTY_NOTICES.txt','README.md' } | Remove-Item
+            Move-Item $d.FullName $pkg
+          }
+          Copy-Item package\Readme.txt $pkg
+          $nl = [Environment]::NewLine
+          $lic = @(
+            '=== YMM4 Fast Export (MIT) ===', (Get-Content LICENSE -Raw),
+            '=== NVEnc/ (NVENC output plugin, fork of tarutaru247/YMM4_NVEncPlugin) ===', (Get-Content NVEnc/LICENSE -Raw),
+            (Get-Content NVEnc/THIRD_PARTY_NOTICES.txt -Raw),
+            '=== ParallelRender/Encoding (derived from the NVEnc plugin) ===', (Get-Content ParallelRender/THIRD_PARTY_NOTICES.txt -Raw),
+            '=== NvencNative.dll (third-party code in the binary) ===', (Get-Content package/NvencNative_NOTICES.txt -Raw)
+          ) -join ($nl + $nl)
+          Set-Content "$pkg\LICENSE.txt" $lic -Encoding utf8
+          $bad = Get-ChildItem $pkg -Recurse -File | Where-Object { $_.Name -match '^(YukkuriMovieMaker|Vortice|SharpGen)\.' }
+          if ($bad) { throw "YMM4 files in the package: $($bad.Name -join ', ')" }
+          New-Item -ItemType Directory artifacts -Force | Out-Null
+          # A .ymme is a zip whose root is the single YMM4_FastExport folder
+          Compress-Archive $pkg artifacts\YMM4_FastExport.zip
+          Move-Item artifacts\YMM4_FastExport.zip artifacts\YMM4_FastExport.ymme
+          Get-ChildItem artifacts | Format-Table Name, Length
+          Get-ChildItem $pkg -Recurse -File | ForEach-Object { "{0}  {1}" -f (Get-FileHash $_.FullName -Algorithm SHA256).Hash.Substring(0,16), $_.FullName.Substring($PWD.Path.Length) }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: YMM4_FastExport-built-for-YMM4-${{ env.YMM4_TAG }}
+          path: artifacts/*
+          if-no-files-found: error
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true
+          body: Built against YMM4 Lite ${{ env.YMM4_TAG }}.

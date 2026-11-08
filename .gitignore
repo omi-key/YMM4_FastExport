@@ -1,0 +1,15 @@
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+.venv/
+__pycache__/
+# YMM4 binaries (reference copy; never commit)
+YukkuriMovieMaker_v4_Lite/
+# native / distributed binaries (not committed for licensing reasons)
+*.dll
+*.pdb
+*.exe
+*.mp4
+

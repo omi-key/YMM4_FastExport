@@ -1,0 +1,88 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>FastPsdTachiePlugin</AssemblyName>
+    <RootNamespace>FastPsdTachiePlugin</RootNamespace>
+    <Version>0.4.0</Version>
+    <AssemblyVersion>0.4.0.0</AssemblyVersion>
+    <FileVersion>0.4.0.0</FileVersion>
+    <InformationalVersion>0.4.0</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <Deterministic>true</Deterministic>
+    <DebugType>embedded</DebugType>
+
+    <!-- Keep source full paths out of the PDB/DLL -->
+    <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\'))</RepoRoot>
+    <PathMap>$(RepoRoot)=.</PathMap>
+  </PropertyGroup>
+
+  <!-- Referenced assemblies are loaded by the host (YMM4) at run time, so they are not copied to the output -->
+  <ItemGroup>
+    <Reference Include="YukkuriMovieMaker.Controls">
+      <HintPath>$(YMM4DirPath)YukkuriMovieMaker.Controls.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="YukkuriMovieMaker.Plugin">
+      <HintPath>$(YMM4DirPath)YukkuriMovieMaker.Plugin.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="YukkuriMovieMaker.Plugin.Tachie.Psd">
+      <HintPath>$(YMM4DirPath)YukkuriMovieMaker.Plugin.Tachie.Psd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="YukkuriMovieMaker.Plugin.FileSource.Psd">
+      <HintPath>$(YMM4DirPath)YukkuriMovieMaker.Plugin.FileSource.Psd.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="PsdParser">
+      <HintPath>$(YMM4DirPath)PsdParser.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="SharpGen.Runtime">
+      <HintPath>$(YMM4DirPath)SharpGen.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="SharpGen.Runtime.COM">
+      <HintPath>$(YMM4DirPath)SharpGen.Runtime.COM.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Vortice.Direct2D1">
+      <HintPath>$(YMM4DirPath)Vortice.Direct2D1.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Vortice.DXGI">
+      <HintPath>$(YMM4DirPath)Vortice.DXGI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Vortice.DirectX">
+      <HintPath>$(YMM4DirPath)Vortice.DirectX.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Vortice.Mathematics">
+      <HintPath>$(YMM4DirPath)Vortice.Mathematics.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\LICENSE" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    Opt-in: copies to $(YMM4DirPath)user\plugin\ only when -p:DeployToYmm4=true is given.
+    A normal build never touches the YMM4 folder.
+  -->
+  <Target Name="DeployToYmm4" AfterTargets="Build" Condition="'$(DeployToYmm4)' == 'true'">
+    <PropertyGroup>
+      <Ymm4PluginDir>$(YMM4DirPath)user\plugin\FastPsdTachiePlugin\</Ymm4PluginDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(Ymm4PluginDir)" />
+    <Copy SourceFiles="$(TargetPath);$(MSBuildProjectDirectory)\..\README.md;$(MSBuildProjectDirectory)\..\LICENSE" DestinationFolder="$(Ymm4PluginDir)" />
+  </Target>
+
+</Project>

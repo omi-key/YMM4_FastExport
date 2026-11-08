@@ -1,0 +1,15 @@
+Third-Party Notices
+===================
+
+1) YMM4_NVEncPlugin (omi-key fork of tarutaru247/YMM4_NVEncPlugin), MIT
+   - Source: NVEnc/ in this repository (imported with its history from https://github.com/omi-key/YMM4_NVEncPlugin;
+     see NVEnc/LICENSE and NVEnc/THIRD_PARTY_NOTICES.txt)
+   - Source-derived portions: NVEnc/NVEncVideoWriterPlugin/NvencNativeMethods.cs (P/Invoke, linked into the plugin at build time),
+     Encoding/EncoderCore.cs (encoder initialisation, bitrate and buffer-format logic), Settings.cs (setting names/defaults).
+   - NvencNative.dll (native NVENC encoder) is built from NVEnc/NvencNative and is deployed next to the plugin DLL;
+     it is NOT stored in this repository.
+   - That project is itself derived from YMM4_AMF_Plugin (tp-li-dev / Disnana, MIT).
+
+2) NVIDIA NVENC SDK: not included.
+3) YukkuriMovieMaker v4: referenced at build/run time, not included. Internal types are called via Krafs.Publicizer
+   (MIT, build-time only).

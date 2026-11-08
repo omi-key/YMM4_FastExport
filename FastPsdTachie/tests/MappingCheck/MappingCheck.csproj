@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Self-check: compares the own "input -> enabled-layer set" mapping against the standard implementation (called by reflection) on random input. Needs neither a GPU nor YMM4 itself. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\..\FastPsdTachiePlugin\AnimationPlan.cs" Link="AnimationPlan.cs" />
+    <Compile Include="..\..\FastPsdTachiePlugin\SharedBitmapCache.cs" Link="SharedBitmapCache.cs" />
+    <Compile Include="..\..\FastPsdTachiePlugin\CrossDeviceStore.cs" Link="CrossDeviceStore.cs" />
+    <Compile Include="..\..\FastPsdTachiePlugin\SharedDocStore.cs" Link="SharedDocStore.cs" />
+    <Reference Include="YukkuriMovieMaker.Plugin"><HintPath>$(YMM4DirPath)YukkuriMovieMaker.Plugin.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="YukkuriMovieMaker.Plugin.Tachie.Psd"><HintPath>$(YMM4DirPath)YukkuriMovieMaker.Plugin.Tachie.Psd.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="YukkuriMovieMaker.Plugin.FileSource.Psd"><HintPath>$(YMM4DirPath)YukkuriMovieMaker.Plugin.FileSource.Psd.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="YukkuriMovieMaker.Controls"><HintPath>$(YMM4DirPath)YukkuriMovieMaker.Controls.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="PsdParser"><HintPath>$(YMM4DirPath)PsdParser.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+</Project>

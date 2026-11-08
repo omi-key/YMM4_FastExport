@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <!-- Overridable with -p:YMM4DirPath=...; a trailing backslash is added if missing -->
+    <YMM4DirPath Condition="'$(YMM4DirPath)' == ''">$(MSBuildThisFileDirectory)YukkuriMovieMaker_v4_Lite\</YMM4DirPath>
+    <YMM4DirPath Condition="!HasTrailingSlash('$(YMM4DirPath)')">$(YMM4DirPath)\</YMM4DirPath>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,7 @@
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+*.suo
+# Local YMM4 copy (reference DLLs)
+YukkuriMovieMaker_v4_Lite/

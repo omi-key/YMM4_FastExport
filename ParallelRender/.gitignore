@@ -1,0 +1,6 @@
+[Bb]in/
+[Oo]bj/
+.vs/
+*.user
+# Local copy of the YMM4 DLLs used as references (not redistributable; never commit)
+YukkuriMovieMaker_v4_Lite/

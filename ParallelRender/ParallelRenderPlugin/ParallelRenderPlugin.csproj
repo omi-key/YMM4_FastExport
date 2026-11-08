@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>ParallelRenderPlugin</AssemblyName>
+    <RootNamespace>ParallelRender</RootNamespace>
+    <Version>0.1.0</Version>
+    <Deterministic>true</Deterministic>
+    <DebugType>embedded</DebugType>
+    <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\'))</RepoRoot>
+    <PathMap>$(RepoRoot)=.</PathMap>
+    <!-- Calls YMM4 internal types (TimelineSource, CommandLineEncoder, ...) directly -->
+    <PublicizerRuntimeStrategies>Unsafe;IgnoresAccessChecksTo</PublicizerRuntimeStrategies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Krafs.Publicizer" Version="2.3.0" PrivateAssets="all" />
+    <Publicize Include="YukkuriMovieMaker" />
+  </ItemGroup>
+
+  <!-- P/Invoke declarations of NvencNative.dll, shared with the NVEnc plugin (NVEnc/). -->
+  <ItemGroup>
+    <Compile Include="..\..\NVEnc\NVEncVideoWriterPlugin\NvencNativeMethods.cs" Link="Encoding\NvencNativeMethods.cs" />
+  </ItemGroup>
+
+  <!-- The host (YMM4) loads these at run time, so they are not copied to the output -->
+  <ItemGroup>
+    <Reference Include="YukkuriMovieMaker"><HintPath>$(YMM4DirPath)YukkuriMovieMaker.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="YukkuriMovieMaker.Settings"><HintPath>$(YMM4DirPath)YukkuriMovieMaker.Settings.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="YukkuriMovieMaker.Plugin"><HintPath>$(YMM4DirPath)YukkuriMovieMaker.Plugin.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="YukkuriMovieMaker.Controls"><HintPath>$(YMM4DirPath)YukkuriMovieMaker.Controls.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="SharpGen.Runtime"><HintPath>$(YMM4DirPath)SharpGen.Runtime.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="SharpGen.Runtime.COM"><HintPath>$(YMM4DirPath)SharpGen.Runtime.COM.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Vortice.Direct2D1"><HintPath>$(YMM4DirPath)Vortice.Direct2D1.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Vortice.Direct3D11"><HintPath>$(YMM4DirPath)Vortice.Direct3D11.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Vortice.DirectX"><HintPath>$(YMM4DirPath)Vortice.DirectX.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Vortice.DXGI"><HintPath>$(YMM4DirPath)Vortice.DXGI.dll</HintPath><Private>false</Private></Reference>
+    <Reference Include="Vortice.Mathematics"><HintPath>$(YMM4DirPath)Vortice.Mathematics.dll</HintPath><Private>false</Private></Reference>
+  </ItemGroup>
+
+  <!--
+    Opt-in: copies the dll to <dir> only when -p:DeployDir=<dir> is given.
+    (YMM4DirPath is for references only and is never copied into a real install.)
+  -->
+  <Target Name="DeployToDir" AfterTargets="Build" Condition="'$(DeployDir)' != ''">
+    <MakeDir Directories="$(DeployDir)" />
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(DeployDir)" />
+    <!-- NvencNative.dll (built from NVEnc/NvencNative with build-mingw.sh, not kept in the repo): -p:NvencNativeDll=<path> -->
+    <Copy SourceFiles="$(NvencNativeDll)" DestinationFolder="$(DeployDir)" Condition="'$(NvencNativeDll)' != ''" />
+    <Copy SourceFiles="$(RepoRoot)LICENSE;$(RepoRoot)THIRD_PARTY_NOTICES.txt" DestinationFolder="$(DeployDir)" />
+  </Target>
+
+</Project>
